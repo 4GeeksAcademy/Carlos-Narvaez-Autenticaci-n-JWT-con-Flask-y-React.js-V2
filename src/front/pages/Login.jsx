@@ -31,8 +31,8 @@ const handleSubmit = async (e)=>{
 
     const data = await response.json() 
 
-    sessionStorage.setItem("token", data.token)
-    sessionStorage.setItem("user", JSON.stringify(data.user)) //si es necesario
+    localStorage.setItem("token", data.token)
+    localStorage.setItem("user", JSON.stringify(data.user)) //si es necesario
 
     dispatch({
       type: "login",
@@ -42,7 +42,7 @@ const handleSubmit = async (e)=>{
       }
     })
 
-    navigate("/private") //debe llevar a una ruta protegida
+    navigate("/demo") //debe llevar a una ruta protegida
     alert ("login sucessfull")
 
 

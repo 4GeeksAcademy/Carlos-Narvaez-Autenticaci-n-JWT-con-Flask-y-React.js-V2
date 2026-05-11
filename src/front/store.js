@@ -38,8 +38,8 @@ export default function storeReducer(store, action = {}) {
       };
 
     case 'login':
-      sessionStorage.setItem("token", action.payload.token);
-      sessionStorage.setItem("user", JSON.stringify(action.payload.user));
+      localStorage.setItem("token", action.payload.token);
+      localStorage.setItem("user", JSON.stringify(action.payload.user));
       return{
         ...store, 
         token: action.payload.token,
@@ -47,15 +47,7 @@ export default function storeReducer(store, action = {}) {
         isAuthenticated :true
       }
 
-case 'logout':
-  sessionStorage.removeItem("token");
-  sessionStorage.removeItem("user");
-  return {
-    ...store,
-    token: null,
-    user: null,
-    isAuthenticated: false
-  };
+
 
 
     default:

@@ -6,10 +6,13 @@ export const Private = () => {
     const { store } = useContext(Context);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        // VALIDATION: Redirect if token is missing
-        if (!store.token) navigate("/login");
-    }, [store.token]);
+useEffect(() => {
+    // Check BOTH the store and the browser storage
+    const token = sessionStorage.getItem("token");
+    if (!store.token && !token) {
+        navigate("/login");
+    }
+}, [store.token]);
 
     return (
         <div className="container mt-5 text-center">
