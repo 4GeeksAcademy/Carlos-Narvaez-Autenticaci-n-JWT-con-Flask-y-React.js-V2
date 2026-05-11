@@ -1,40 +1,109 @@
-from flask import Flask, request, jsonify, Blueprint
+"""
+This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+"""
+from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, User
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from api.utils import generate_sitemap, APIException
+from flask_cors import CORS
+
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 api = Blueprint('api', __name__)
 
-# [POST] /signup: Create a new user
-@api.route('/signup', methods=['POST'])
-def handle_signup():
-    body = request.get_json()
-    if User.query.filter_by(email=body.get("email")).first():
-        return jsonify({"msg": "User already exists"}), 400
+# Allow CORS requests to this API
+CORS(api)
+
+
+@api.route('/hello', methods=['POST', 'GET'])
+def handle_hello():
+
+    response_body = {
+        "message": "Hello! I'm a message that came from the backend, check the network tab on the google inspector and you will see the GET request"
+    }
+
+    return jsonify(response_body), 200
+
+# //////////////////////////////////////////////////////////registro 
+
+
+@api.route('/user', methods=['POST'])
+def create_user():
+    # siempre en formato JSON
+    data= request.get_json()
+
+    #verificando que el mensaje no este vacio
+    if not data:
+        return jsonify({"msg": "no se proporcionaron datos"}), 400
+
+    #extraer los valores de los campos 
+    email= data.get("email")
+
+    username= data.get("username")
+
+    #validar si el email esta registrado
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({"msg": "ya existe un usuario registrado con ese email"}), 409
     
-    new_user = User(email=body["email"], password=body["password"], is_active=True)
+#esta linea genera la clave encriptada
+    hashed_password = generate_password_hash(data["password"])
+
+    
+    #crea un registro nuevo 
+    new_user= User(
+        email= email,
+        password=  hashed_password,
+        username= username
+    )
+
+    #debe ser guardada en la base de datos
     db.session.add(new_user)
-    db.session.commit()
-    return jsonify({"msg": "User created successfully"}), 201
 
-# [POST] /login: Authenticate and return JWT
-@api.route('/login', methods=['POST'])
-def handle_login():
-    body = request.get_json()
-    email = body.get("email")
-    password = body.get("password")
+    try:
+        #confirmar los cambios de forma permanente
+        db.session.commit()
+        return jsonify(new_user.serialize()), 201
+    
+    except Exception as error:
+         #en caso de error se captura la excepcion
+        print(f"Error al crear usuario: {error}")
+        return jsonify({"msg": "Internal Server Error", "error": str(error)}), 500
+    
 
-    user = User.query.filter_by(email=email, password=password).first()
-    if user is None:
-        return jsonify({"msg": "Invalid credentials"}), 401
+    # //////////////////////////////////////////////////////// login 
 
-    # Using identity as a string for JWT
+
+@api.route("/login", methods=["POST"])
+def login():
+    # username = request.json.get("username", None)
+    # password = request.json.get("password", None)
+
+    # if username != "test" or password != "test":
+    #     return jsonify({"msg": "Bad username or password"}), 401
+
+
+    data= request.get_json()
+
+    user= User.query.filter_by(email=data["email"]).first()
+    if not user or not check_password_hash(user.password, data["password"]):
+        return jsonify({"msg": "Invalid email or password"}), 401
+
+
     access_token = create_access_token(identity=str(user.id))
-    return jsonify({"token": access_token, "user": user.serialize()}), 200
+    return jsonify({
+        "token": access_token,
+        "user": user.serialize()}), 200
 
-# [GET] /private: Protected area validation
-@api.route('/private', methods=['GET'])
+# ////////////////////////////////////////////////////////////// ruta protegida
+
+@api.route("/protected", methods=["GET"])
 @jwt_required()
-def handle_private():
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
-    return jsonify({"msg": f"Hello {user.email}, access granted"}), 200
+def protected():
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
